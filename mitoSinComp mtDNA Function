@@ -43,10 +43,10 @@ def quality_check(gray, coordinates, db, percent = 0.9):
 dir = '*/function_channel.tif' # Replace * with the location of the tiff file
 img = tifffile.imread(dir)
 
-struct_tiff = tifffile.imread('*/structure_channel.tif') Replace * wuth the location of the tiff file
+struct_tiff = tifffile.imread('*/structure_channel.tif') Replace * with the location of the tiff file
 func_tiff = tifffile.imread(dir)
 
-df = pd.read_csv('*/.csv') #Table from MitoSinComp output # Replace * wuth the location (Refer to the Script for MitoSinComp)
+df = pd.read_csv('*/.csv') #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
 df = df.rename(columns = {'Unnamed: 0': 'Index'})
 
 plt.imshow(img[5])
@@ -230,12 +230,12 @@ for j in range(len(global_coordinate_list)):
 
 len(filtered_coordinates)
 filtered_coordinates = pd.DataFrame(filtered_coordinates, columns = ['x_pixel', 'y_pixel', 'z_pixel', 'cluster_num'])
-filtered_coordinates.to_csv('*/filtered_coords_cut_new_min_distance8.csv', index=True) #Replace with file location
+filtered_coordinates.to_csv('*/filtered_coords_cut_new_min_distance8.csv', index=True) # Replace * with the location 
 #RENAMING CLUSTER NAME WITH PREFIX AS SLICE NO.
 import pandas as pd
 
 # Load the CSV file (update the path accordingly)
-file_path = "*/filtered_coords_cut_new_min_distance8.csv" #Replace with file location
+file_path = "*/filtered_coords_cut_new_min_distance8.csv"  # Replace * with the location 
 df = pd.read_csv(file_path)
 
 # Generate 'renamed_cluster'
@@ -245,17 +245,32 @@ df["renamed_cluster"] = df.apply(lambda row: f"S{row['z_pixel']}_{row['cluster_n
 df["cluster_size"] = df.groupby("renamed_cluster")["renamed_cluster"].transform("count")
 
 # Save the updated DataFrame to a new CSV file
-output_path = "*/filtered_coords_cut_new_min_distance8_modified.csv"  # Change this to your desired output file name
+output_path = "*/filtered_coords_cut_new_min_distance8_modified.csv"  # Replace * with the location 
 df.to_csv(output_path, index=False)
 
 print(f"Processed data saved to {output_path}")
 
+# Filter clusters information of a single slice
+def filter_clusters(file_path, output_path):
+    df = pd.read_csv(file_path)
+    if 'cluster_num' not in df.columns or 'z_pixel' not in df.columns:
+        raise ValueError("The file must contain 'cluster_num' and 'z_pixel'.")
+    filtered_df = df[df['cluster_num'] != -1]
+    filtered_df = filtered_df[filtered_df['z_pixel'] == 7]
+    filtered_df.to_csv(output_path, index=False)
+    print(f"Filtered data saved to {output_path}")
+
+filter_clusters(
+    "*/filtered_coords_cut_new_modified.csv"  # Replace * with the location (input)
+    "*/filtered_coords_cut_new_modified_slice8.csv"  # Replace * with the location (output)
+)
+
 #Single Slice MitoSinComp mtDNA Function for MIN_DISTANCE hyperparameter for MAPPED
-foci_df = pd.read_csv("*/filtered_coords_cut_new_modified_slice8.csv")
+foci_df = pd.read_csv("*/filtered_coords_cut_new_modified_slice8.csv")  # Replace * with the location 
 foci_df[['x_pixel', 'y_pixel']] = foci_df[['x_pixel', 'y_pixel']].apply(pd.to_numeric)
 
 # Load structure data#
-df = pd.read_csv("*/full_Table_cut.csv")  #Replace with actual structure file path
+df = pd.read_csv("*/full_Table_cut.csv")  #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
 df = df.rename(columns={'Unnamed: 0': 'Index'})  # Ensure there is an Index column
 df[['x_pixel', 'y_pixel']] = df[['x_pixel', 'y_pixel']].apply(pd.to_numeric)
 
@@ -279,7 +294,7 @@ foci_df['Index'] = min_distance_indices
 
 foci_df['plot'] = np.where(foci_df['min_distance'] <= MIN_DISTANCE, 'PLOT', 'NO_PLOT')
 foci_df = foci_df[foci_df['plot'] == 'PLOT']
-foci_df.to_csv('*/foci_df_PLOT_min_ditance6_slice8.csv', index=False) #Replace with actual structure file path
+foci_df.to_csv('*/foci_df_PLOT_min_ditance6_slice8.csv', index=False) #Replace with desired file location
 
 print(foci_df.columns)
 Index(['Unnamed: 0', 'x_pixel', 'y_pixel', 'z_pixel', 'cluster_num',
@@ -328,15 +343,14 @@ merged_df['num_of_clusters'] = merged_df.groupby('cc_x')['renamed_cluster'].tran
 print("✅ Done! Bingo! Here's a preview:")
 print(merged_df[['cc_x', 'avg_cluster_size', 'num_of_clusters']].drop_duplicates().head())
 
-merged_df.to_csv('*/foci_df_PLOT_mindis_12_slice8_merged.csv') #Replace with File location
-
+merged_df.to_csv('*/foci_df_PLOT_mindis_12_slice8_merged.csv') # Replace * with the location 
 #UNMAPPED
 #Single Slice MitoSinComp mtDNA Function for MIN_DISTANCE hyperparameter for UNMAPPED
 foci_df = pd.read_csv("*/filtered_coords_cut_new_modified_slice8.csv")
 foci_df[['x_pixel', 'y_pixel']] = foci_df[['x_pixel', 'y_pixel']].apply(pd.to_numeric)
 
 # Load structure data#
-df = pd.read_csv("*/full_Table_cut.csv")  # Replace with actual structure file path
+df = pd.read_csv("*/full_Table_cut.csv")  #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
 df = df.rename(columns={'Unnamed: 0': 'Index'})  # Ensure there is an Index column
 df[['x_pixel', 'y_pixel']] = df[['x_pixel', 'y_pixel']].apply(pd.to_numeric)
 
@@ -360,7 +374,7 @@ foci_df['Index'] = min_distance_indices
 
 foci_df['plot'] = np.where(foci_df['min_distance'] > MIN_DISTANCE, 'NO_PLOT', 'PLOT')
 foci_df = foci_df[foci_df['plot'] == 'NO_PLOT']
-foci_df.to_csv('*/foci_df_PLOT_min_ditance6_slice8.csv', index=False) # Replace with actual structure file path
+foci_df.to_csv('*/foci_df_PLOT_min_ditance6_slice8.csv', index=False)  # Replace * with the location 
 
 print(foci_df.columns)
 Index(['Unnamed: 0', 'x_pixel', 'y_pixel', 'z_pixel', 'cluster_num',
@@ -369,7 +383,7 @@ Index(['Unnamed: 0', 'x_pixel', 'y_pixel', 'z_pixel', 'cluster_num',
 
 #PLOTTING -UNMAPPED
 # Load binary PNG image
-binary_img = imageio.imread('/media/mitograph/Sys_BackUp/Bharti_genomics/hacat_cut_new_25_5_25/AnalysisFiles_cut/channel_0/channel_01.png')
+binary_img = imageio.imread('*/structure_channel.png')  # Replace * with the location # Binary generated from MitoSinComp 
 
 # If the binary image is RGB, convert to grayscale
 if binary_img.ndim == 3:
@@ -409,4 +423,4 @@ merged_df['num_of_clusters'] = merged_df.groupby('cc_x')['renamed_cluster'].tran
 print("✅ Done! Bingo! Here's a preview:")
 print(merged_df[['cc_x', 'avg_cluster_size', 'num_of_clusters']].drop_duplicates().head())
 
-merged_df.to_csv('*/foci_df_NO_PLOT__slice8_merged.csv')
+merged_df.to_csv('*/foci_df_NO_PLOT__slice8_merged.csv')  # Replace * with the location 
