@@ -1,1 +1,24 @@
+%load_ext autoreload 
+%autoreload 2
 
+from MitoCode_Functions import *
+from Mitocode_Intensity import *
+import tifffile
+import os
+from aicsimageio import AICSImage
+from aicspylibczi import CziFile
+# First, we need to split the .czi files. You should have kept all the .czi files you want into a particular directory. 
+# Enter the directory to this: 
+
+directory_to_czi = '*/in/' # Replace * with actual path
+# now split the images 
+
+import generate_split_images as splitter
+splitter.splitter_main(directory_to_czi)
+import runMitograph as mitograph_runner 
+
+mitograph_runner.runMitograph(dxy = 0.104, dz = 0.5, wslcheck = False, mitographDirectory='*/Mitograph_Test_Build/build/', structDir='*/in/') # Replace * with actual path
+
+import Generate_Excel as generator
+
+full = generator.main('*in/', False, struct_chan= [0], func_chans=[2,3]) # Replace * with actual path Replace 0 with structure channels and 2, 3 with the function channels
