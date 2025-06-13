@@ -1,0 +1,426 @@
+#import the packages
+import tifffile
+import matplotlib.pyplot as plt
+import numpy as np 
+from sklearn.cluster import DBSCAN
+from skimage.feature import peak_local_max
+from matplotlib import cm, colors
+import pandas as pd
+from scipy.spatial import distance
+import imageio
+
+def quality_check(gray, coordinates, db, percent = 0.9):
+    # for the items in unique list, find the coordinates
+    unique_coords = []
+
+    # find the labels which only occur once
+    unique_list = np.unique(db.labels_)
+    only_once_list = [i for i in unique_list if list(db.labels_).count(i) == 1]
+
+    for i in only_once_list:
+        unique_coords.append(coordinates[db.labels_ == i])
+
+    # using the coordinate as the center, draw a 3x3 square around the array and find the mean pixel intensity of that square
+    # if the mean pixel intensity of that square is below 90% of the pixel intensity of the center, remove the coordinate
+
+    remove_list = []
+    remove_list_label = []
+
+    for j, i in enumerate(unique_coords):
+        x = i[0][0]
+        y = i[0][1]
+        mean_int = (gray[x-1:x+2, y-1:y+2].mean()) 
+        if mean_int < percent * gray[x, y]: 
+            # 1 == 1
+            remove_list.append(i)
+            remove_list_label.append(only_once_list[j])
+
+    if -1 in db.labels_:
+        remove_list_label.append(-1)
+
+    return remove_list_label
+
+dir = '*/function_channel.tif' # Replace * with the location of the tiff file
+img = tifffile.imread(dir)
+
+struct_tiff = tifffile.imread('*/structure_channel.tif') Replace * with the location of the tiff file
+func_tiff = tifffile.imread(dir)
+
+df = pd.read_csv('*/.csv') #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
+df = df.rename(columns = {'Unnamed: 0': 'Index'})
+
+plt.imshow(img[5])
+
+#Pixels above this threshold to be considered= THRESH_PERCENT
+THRESH_PERCENT = 100 - n, # n will be based on ImageJ thresholding as detailed in Methods
+#THRESH_RELATIVE = 0.9
+# Defines radius of the pixel around the centroid
+EPSILON = 1 #Based on Image
+#Min Distance = minimum distance between two clusters measured in pixel
+percent = 0.9
+
+pixel_count_list = []
+global_coordinate_list = []
+global_rll_list = []
+global_clustered_list = []
+binary_image_list = []
+  
+# minimum number of pixels above the threshold in a cluster
+MIN_SAMPLES = 4 #Based on Image
+ALPHA = 0.6 #visualization parameter
+
+for z in range(img.shape[0]):
+    # Convert the image to grayscale
+    gray = img[z]
+
+    threshold = np.percentile(gray, THRESH_PERCENT)
+
+    # Threshold the image to binary by setting all pixels above the threshold to white (255)
+    binary = np.where(gray > threshold, 255, 0).astype('uint8')
+
+    # Find the coordinates of the white dots
+    coordinates = peak_local_max(binary, threshold_rel=0.9)
+    global_coordinate_list.append([coordinates, z])
+
+    # # Run the DBSCAN algorithm on the coordinates.mean()
+    # run DBSCAN with gpu 
+    db = DBSCAN(eps=EPSILON, min_samples=MIN_SAMPLES).fit(coordinates)
+
+    global_clustered_list.append([db, z])
+    
+    # # Create an empty image to display the clusters
+    # clustered = np.zeros_like(binary)
+    rll = quality_check(gray, coordinates, db, percent)
+
+    global_rll_list.append([rll, z])
+    binary_image_list.append([binary, z])
+
+    binary_image_list.append([binary, z])
+
+    
+def plot_foci(db, rll, gray, binary, coordinates, curr_df = None):
+    # # Assign each cluster a different intensity
+    pixel_count_list = []
+    
+    clustered = np.zeros_like(binary)
+    
+    for i, label in enumerate(np.unique(db.labels_)):
+        if label in rll: 
+            # print('no')
+            continue
+        else: 
+            clustered[coordinates[db.labels_ == label, 0], coordinates[db.labels_ == label, 1]] = 100
+
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+
+    # add a text number next to each cluster 
+    axs[0].imshow(clustered, cmap='tab20')
+    for i, txt in enumerate(np.unique(db.labels_)):
+        if txt in rll: 
+            continue
+        if len(coordinates[db.labels_ == txt, 1]) < 4:
+            continue 
+        else: 
+            pixel_count_list.append([txt, len(coordinates[db.labels_ == txt, 1])])
+
+            axs[0].text(coordinates[db.labels_ == txt, 1].mean(), coordinates[db.labels_ == txt, 0].mean(), str(txt), color='white', fontsize=6)
+            axs[1].text(coordinates[db.labels_ == txt, 1].mean(), coordinates[db.labels_ == txt, 0].mean(), str(txt), color='white', fontsize=6)
+            #pixel_count_list.append([txt, len(coordinates[db.labels_ == txt, 1])])
+
+    # plot the clusters on top of the original image
+    axs[1].imshow(gray, cmap='gray')
+    # axs[1].scatter(coordinates[:, 1], coordinates[:, 0], c='r', s=10, alpha=0.1)
+
+    unclustered_points_list = []
+
+    for i, txt in enumerate(np.unique(db.labels_)):
+        if txt in rll or len(coordinates[db.labels_ == txt, 1]) < MIN_SAMPLES: 
+            unclustered_points_list.append(len(coordinates[db.labels_ == txt, 1]))
+            continue
+        # color based on txt
+        axs[1].scatter(coordinates[db.labels_ == txt, 1], coordinates[db.labels_ == txt, 0], marker = 'x', color=cm.tab20(txt), alpha = ALPHA, s = 1)
+        axs[2].scatter(coordinates[db.labels_ == txt, 1].mean(), coordinates[db.labels_ == txt, 0].mean(), marker = 'x', color='red', alpha = ALPHA, s = 1)
+        #axs[1].scatter(coordinates[db.labels_ == txt, 1], coordinates[db.labels_ == txt, 0], c='r', s=10, alpha=0.5)
+        axs[2].scatter(coordinates[db.labels_ == txt, 1], coordinates[db.labels_ == txt, 0], marker = 'x', color=cm.tab20(txt), alpha = ALPHA, s = 1)
+        # axs[2].scatter(curr_df['x_pixel'][i], curr_df['y_pixel'][i], marker = 'x', color='red', alpha = ALPHA, s = 1)
+    # plot the threshold image
+    axs[2].imshow(binary, cmap='gray')
+
+
+    plt.tight_layout()
+    return pixel_count_list
+    # plt.show()
+
+    # plt.savefig('test.png', dpi=300, bbox_inches = 'tight')
+
+    global_pixel_list = []
+total_clusters = 0  # Initialize global cluster count
+
+for j in range(len(global_clustered_list)):
+    pixel_count_list = plot_foci(
+        db=global_clustered_list[j][0],
+        rll=global_rll_list[j][0],
+        gray=img[j],
+        binary=binary_image_list[j][0],
+        coordinates=global_coordinate_list[j][0]
+    )
+
+    # Count number of clusters plotted in this slice
+    num_clusters_plotted = len(pixel_count_list)
+
+    # Update total count
+    total_clusters += num_clusters_plotted
+
+    # Print slice-wise cluster count
+    print(f"Slice {j + 1}: {num_clusters_plotted} clusters plotted")
+
+    global_pixel_list.append(pixel_count_list)
+
+# Print the total number of clusters across all slices
+print(f"Total clusters across all slices: {total_clusters}")
+
+
+# Import structural TIFF and plot MIP
+fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+ax.imshow(struct_tiff.max(axis=0), cmap='gray')
+
+total_points_plotted = 0  # Initialize counter
+
+for j in range(len(global_clustered_list)):
+    for i, txt in enumerate(np.unique(global_clustered_list[j][0].labels_)):
+        # Check if the cluster is valid
+        if txt in global_rll_list[j][0]: 
+            continue  
+
+        # Get cluster coordinates
+        x_coords = global_coordinate_list[j][0][global_clustered_list[j][0].labels_ == txt, 1]
+        y_coords = global_coordinate_list[j][0][global_clustered_list[j][0].labels_ == txt, 0]
+
+        # Ensure cluster has enough points
+        #if len(x_coords) < 4:
+            #continue  
+
+        # Plot cluster centroid
+        ax.scatter(x_coords.mean(), y_coords.mean(), marker='2', color='red', alpha=0.6, s=2)
+
+        # Update total points count
+        total_points_plotted += 1  
+
+# Display total number of points plotted
+print(f"Total points plotted: {total_points_plotted}")
+
+plt.show()
+
+func_tiff = tifffile.imread(dir)
+filtered_coordinates = []
+
+for j in range(len(global_clustered_list)):
+    for i, txt in enumerate(np.unique(global_clustered_list[j][0].labels_)):
+        if txt in global_rll_list[j][0] or len(global_coordinate_list[j][0][global_clustered_list[j][0].labels_ == txt, 1]) < MIN_SAMPLES: 
+            continue
+        x_coords = global_coordinate_list[j][0][global_clustered_list[j][0].labels_ == txt, 1]
+        y_coords = global_coordinate_list[j][0][global_clustered_list[j][0].labels_ == txt, 0]
+        z_coords = [j] * len(x_coords)
+        cluster_num = [txt] * len(x_coords)
+        filtered_coordinates.extend(list(zip(x_coords, y_coords, z_coords, cluster_num)))
+
+for j in range(len(global_coordinate_list)):
+    x_vals = global_coordinate_list[j][0][:, 1]
+    print(f"Slice {j}: x range = {x_vals.min()}–{x_vals.max()}")
+
+len(filtered_coordinates)
+filtered_coordinates = pd.DataFrame(filtered_coordinates, columns = ['x_pixel', 'y_pixel', 'z_pixel', 'cluster_num'])
+filtered_coordinates.to_csv('*/filtered_coords_cut_new_min_distance8.csv', index=True) # Replace * with the location 
+#RENAMING CLUSTER NAME WITH PREFIX AS SLICE NO.
+import pandas as pd
+
+# Load the CSV file (update the path accordingly)
+file_path = "*/filtered_coords_cut_new_min_distance8.csv"  # Replace * with the location 
+df = pd.read_csv(file_path)
+
+# Generate 'renamed_cluster'
+df["renamed_cluster"] = df.apply(lambda row: f"S{row['z_pixel']}_{row['cluster_num']}", axis=1)
+
+# Compute 'cluster size'
+df["cluster_size"] = df.groupby("renamed_cluster")["renamed_cluster"].transform("count")
+
+# Save the updated DataFrame to a new CSV file
+output_path = "*/filtered_coords_cut_new_min_distance8_modified.csv"  # Replace * with the location 
+df.to_csv(output_path, index=False)
+
+print(f"Processed data saved to {output_path}")
+
+# Filter clusters information of a single slice
+def filter_clusters(file_path, output_path):
+    df = pd.read_csv(file_path)
+    if 'cluster_num' not in df.columns or 'z_pixel' not in df.columns:
+        raise ValueError("The file must contain 'cluster_num' and 'z_pixel'.")
+    filtered_df = df[df['cluster_num'] != -1]
+    filtered_df = filtered_df[filtered_df['z_pixel'] == 7]
+    filtered_df.to_csv(output_path, index=False)
+    print(f"Filtered data saved to {output_path}")
+
+filter_clusters(
+    "*/filtered_coords_cut_new_modified.csv"  # Replace * with the location (input)
+    "*/filtered_coords_cut_new_modified_slice8.csv"  # Replace * with the location (output)
+)
+
+#Single Slice MitoSinComp mtDNA Function for MIN_DISTANCE hyperparameter for MAPPED
+foci_df = pd.read_csv("*/filtered_coords_cut_new_modified_slice8.csv")  # Replace * with the location 
+foci_df[['x_pixel', 'y_pixel']] = foci_df[['x_pixel', 'y_pixel']].apply(pd.to_numeric)
+
+# Load structure data#
+df = pd.read_csv("*/full_Table_cut.csv")  #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
+df = df.rename(columns={'Unnamed: 0': 'Index'})  # Ensure there is an Index column
+df[['x_pixel', 'y_pixel']] = df[['x_pixel', 'y_pixel']].apply(pd.to_numeric)
+
+#Compute nearest structure point for each foci#
+coordinates_foci = foci_df[['x_pixel', 'y_pixel']].values
+coordinates_df = df[['x_pixel', 'y_pixel']].values
+
+#Calculate pairwise distance- Eucledian#
+distances = distance.cdist(coordinates_foci, coordinates_df)
+
+#Convert the distances array to a DataFrame
+distances_df = pd.DataFrame(distances)
+
+#Find the minimum distance for each point in foci_df, and also the Index for the point it has the minimum distance with 
+min_distances = distances_df.min(axis=1)
+min_distance_indices = distances_df.idxmin(axis=1)
+
+#Add the minimum distances to the foci_df DataFrame
+foci_df['min_distance'] = min_distances
+foci_df['Index'] = min_distance_indices
+
+foci_df['plot'] = np.where(foci_df['min_distance'] <= MIN_DISTANCE, 'PLOT', 'NO_PLOT')
+foci_df = foci_df[foci_df['plot'] == 'PLOT']
+foci_df.to_csv('*/foci_df_PLOT_min_ditance6_slice8.csv', index=False) #Replace with desired file location
+
+print(foci_df.columns)
+Index(['Unnamed: 0', 'x_pixel', 'y_pixel', 'z_pixel', 'cluster_num',
+       'renamed_cluster', 'cluster_size', 'min_distance', 'Index', 'plot'],
+      dtype='object')
+
+#PLOTTING - MAPPED
+# Load binary PNG image
+binary_img = imageio.imread('*/structure_channel.png') # Binary generated from MitoSinComp
+
+# If the binary image is RGB, convert to grayscale
+if binary_img.ndim == 3:
+    binary_img = np.mean(binary_img, axis=2)  # simple conversion to grayscale
+
+# Optionally convert to binary 0 and 1 (if needed)
+binary_img = (binary_img > 128).astype(int)  # thresholding to get binary mask
+
+fig, ax = plt.subplots(figsize=(5,5))
+
+# Display binary image (black and white)
+ax.imshow(binary_img, cmap='gray')
+
+# Plot cluster points on top
+for _, row in foci_df.iterrows():
+    x, y = row['x_pixel'], row['y_pixel']
+    ax.scatter(x, y, marker='2', color='red', alpha=0.6, s=0.5)
+
+plt.title("Clusters on Binary Image")
+plt.show()
+
+# Merge with structure df#
+merged_df = pd.merge(df, foci_df, on='Index', how='left')
+merged_df = merged_df.dropna(subset=['renamed_cluster'])
+
+# Compute metrics per cc_x#
+if 'cc_x' not in merged_df.columns:
+    raise ValueError("Merged DataFrame must contain 'cc_x' for cluster grouping.")
+
+# Average cluster size per cc_x
+merged_df['avg_cluster_size'] = merged_df.groupby('cc_x')['cluster_size'].transform('mean')
+
+# Number of unique clusters per cc_x
+merged_df['num_of_clusters'] = merged_df.groupby('cc_x')['renamed_cluster'].transform('nunique')
+
+#
+print("✅ Done! Bingo! Here's a preview:")
+print(merged_df[['cc_x', 'avg_cluster_size', 'num_of_clusters']].drop_duplicates().head())
+
+merged_df.to_csv('*/foci_df_PLOT_mindis_12_slice8_merged.csv') # Replace * with the location 
+#UNMAPPED
+#Single Slice MitoSinComp mtDNA Function for MIN_DISTANCE hyperparameter for UNMAPPED
+foci_df = pd.read_csv("*/filtered_coords_cut_new_modified_slice8.csv")
+foci_df[['x_pixel', 'y_pixel']] = foci_df[['x_pixel', 'y_pixel']].apply(pd.to_numeric)
+
+# Load structure data#
+df = pd.read_csv("*/full_Table_cut.csv")  #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
+df = df.rename(columns={'Unnamed: 0': 'Index'})  # Ensure there is an Index column
+df[['x_pixel', 'y_pixel']] = df[['x_pixel', 'y_pixel']].apply(pd.to_numeric)
+
+#Compute nearest structure point for each foci#
+coordinates_foci = foci_df[['x_pixel', 'y_pixel']].values
+coordinates_df = df[['x_pixel', 'y_pixel']].values
+
+#Calculate pairwise distance- Eucledian#
+distances = distance.cdist(coordinates_foci, coordinates_df)
+
+# Convert the distances array to a DataFrame
+distances_df = pd.DataFrame(distances)
+
+# Find the minimum distance for each point in foci_df, and also the Index for the point it has the minimum distance with 
+min_distances = distances_df.min(axis=1)
+min_distance_indices = distances_df.idxmin(axis=1)
+
+# Add the minimum distances to the foci_df DataFrame
+foci_df['min_distance'] = min_distances
+foci_df['Index'] = min_distance_indices
+
+foci_df['plot'] = np.where(foci_df['min_distance'] > MIN_DISTANCE, 'NO_PLOT', 'PLOT')
+foci_df = foci_df[foci_df['plot'] == 'NO_PLOT']
+foci_df.to_csv('*/foci_df_PLOT_min_ditance6_slice8.csv', index=False)  # Replace * with the location 
+
+print(foci_df.columns)
+Index(['Unnamed: 0', 'x_pixel', 'y_pixel', 'z_pixel', 'cluster_num',
+       'renamed_cluster', 'cluster_size', 'min_distance', 'Index', 'plot'],
+      dtype='object')
+
+#PLOTTING -UNMAPPED
+# Load binary PNG image
+binary_img = imageio.imread('*/structure_channel.png')  # Replace * with the location # Binary generated from MitoSinComp 
+
+# If the binary image is RGB, convert to grayscale
+if binary_img.ndim == 3:
+    binary_img = np.mean(binary_img, axis=2)  # simple conversion to grayscale
+
+# Optionally convert to binary 0 and 1 (if needed)
+binary_img = (binary_img > 128).astype(int)  # thresholding to get binary mask
+
+fig, ax = plt.subplots(figsize=(5,5))
+
+# Display binary image (black and white)
+ax.imshow(binary_img, cmap='gray')
+
+# Plot cluster points on top
+for _, row in foci_df.iterrows():
+    x, y = row['x_pixel'], row['y_pixel']
+    ax.scatter(x, y, marker='2', color='red', alpha=0.6, s=0.5)
+
+plt.title("Clusters on Binary Image")
+plt.show()
+
+#STEP 5: Merge with structure df#
+merged_df = pd.merge(df, foci_df, on='Index', how='left')
+merged_df = merged_df.dropna(subset=['renamed_cluster'])
+
+#Compute metrics per cc_x#
+if 'cc_x' not in merged_df.columns:
+    raise ValueError("Merged DataFrame must contain 'cc_x' for cluster grouping.")
+
+#Average cluster size per cc_x
+merged_df['avg_cluster_size'] = merged_df.groupby('cc_x')['cluster_size'].transform('mean')
+
+#Number of unique clusters per cc_x
+merged_df['num_of_clusters'] = merged_df.groupby('cc_x')['renamed_cluster'].transform('nunique')
+
+#DONE#
+print("✅ Done! Bingo! Here's a preview:")
+print(merged_df[['cc_x', 'avg_cluster_size', 'num_of_clusters']].drop_duplicates().head())
+
+merged_df.to_csv('*/foci_df_NO_PLOT__slice8_merged.csv')  # Replace * with the location 
