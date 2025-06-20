@@ -153,7 +153,7 @@ def plot_foci(db, rll, gray, binary, coordinates, curr_df = None):
 
     # plt.savefig('test.png', dpi=300, bbox_inches = 'tight')
 
-    global_pixel_list = []
+global_pixel_list = []
 total_clusters = 0  # Initialize global cluster count
 
 for j in range(len(global_clustered_list)):
