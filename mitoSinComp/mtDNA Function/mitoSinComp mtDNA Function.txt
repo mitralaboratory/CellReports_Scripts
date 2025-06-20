@@ -43,7 +43,7 @@ def quality_check(gray, coordinates, db, percent = 0.9):
 dir = '*/function_channel.tif' # Replace * with the location of the tiff file
 img = tifffile.imread(dir)
 
-struct_tiff = tifffile.imread('*/structure_channel.tif') Replace * with the location of the tiff file
+struct_tiff = tifffile.imread('*/structure_channel.tif') #Replace * with the location of the tiff file
 func_tiff = tifffile.imread(dir)
 
 df = pd.read_csv('*/.csv') #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
