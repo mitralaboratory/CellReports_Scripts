@@ -1,1 +1,461 @@
+#import the packages
+import tifffile
+import matplotlib.pyplot as plt
+import numpy as np 
+from sklearn.cluster import DBSCAN
+from skimage.feature import peak_local_max
+from matplotlib import cm, colors
+import pandas as pd
+from scipy.spatial import distance
+import imageio
+import imageio.v2 as imageio
+def quality_check(gray, coordinates, db, percent = 0.9):
+    # for the items in unique list, find the coordinates
+    unique_coords = []
+
+    # find the labels which only occur once
+    unique_list = np.unique(db.labels_)
+    only_once_list = [i for i in unique_list if list(db.labels_).count(i) == 1]
+
+    for i in only_once_list:
+        unique_coords.append(coordinates[db.labels_ == i])
+
+    # using the coordinate as the center, draw a 3x3 square around the array and find the mean pixel intensity of that square
+    # if the mean pixel intensity of that square is below 90% of the pixel intensity of the center, remove the coordinate
+
+    remove_list = []
+    remove_list_label = []
+
+    for j, i in enumerate(unique_coords):
+        x = i[0][0]
+        y = i[0][1]
+        mean_int = (gray[x-1:x+2, y-1:y+2].mean()) 
+        if mean_int < percent * gray[x, y]: 
+            # 1 == 1
+            remove_list.append(i)
+            remove_list_label.append(only_once_list[j])
+
+    if -1 in db.labels_:
+        remove_list_label.append(-1)
+
+    return remove_list_label
+dir = '/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/channel_1/channel_1.tif' # Replace * with the location of the tiff file
+img = tifffile.imread(dir)
+
+struct_tiff = tifffile.imread('/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/channel_0/channel_0.tif') #Replace * with the location of the tiff file
+func_tiff = tifffile.imread(dir)
+
+df = pd.read_csv('/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/full_Table_tissue_new_cut.csv') #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
+df = df.rename(columns = {'Unnamed: 0': 'Index'})
+
+plt.imshow(img[5])
+#Pixels above this threshold to be considered= THRESH_PERCENT
+THRESH_PERCENT = 100 - 2 # n will be based on ImageJ thresholding as detailed in Methods
+EPSILON = 1  # DBSCAN radius in pixels
+MIN_SAMPLES = 6 # Minimum samples in a cluster
+ALPHA = 0.6  # Transparency for plotting
+
+pixel_count_list = []
+global_coordinate_list = []
+global_rll_list = []
+global_clustered_list = []
+binary_image_list = []
+
+# Step 0: Detect foci and collect coordinates
+for z in range(img.shape[0]):
+    gray = img[z]
+    threshold = np.percentile(gray, THRESH_PERCENT)
+    binary = np.where(gray > threshold, 255, 0).astype('uint8')
+    coordinates = peak_local_max(binary, threshold_rel=0.9)
+
+    global_coordinate_list.append([coordinates, z])
+    binary_image_list.append([binary, z])
+# Step 1: Combine coordinates across slices for DBSCAN to run in 3D and not treat each slice as a separate project
+all_coords = []
+for z in range(len(global_coordinate_list)):
+    coords = global_coordinate_list[z][0]
+    z_column = np.full((coords.shape[0], 1), z)
+    coords_3d = np.hstack((z_column, coords))  # [z, y, x]
+    all_coords.append(coords_3d)
+
+all_coords = np.vstack(all_coords)
+
+# Step 2: Run DBSCAN in 3D
+dbscan_3d = DBSCAN(eps=EPSILON, min_samples=MIN_SAMPLES).fit(all_coords)
+cluster_labels_3d = dbscan_3d.labels_
+
+# Step 3: Reassign cluster labels per slice
+slice_labels = []
+start = 0
+for z in range(len(global_coordinate_list)):
+    n_points = global_coordinate_list[z][0].shape[0]
+    slice_labels.append(cluster_labels_3d[start:start + n_points])
+    start += n_points
+
+# Step 4: Quality check function (already defined)
+
+
+# Step 5: Apply quality check
+global_rll_list = []
+
+for z in range(len(global_coordinate_list)):
+    coords = global_coordinate_list[z][0]
+    gray = img[z]
+    db = type('', (), {})()  # Create a dummy object to hold labels_
+    db.labels_ = slice_labels[z]
+
+    if coords.shape[0] == 0 or len(db.labels_) == 0:
+        global_rll_list.append(set())
+        continue
+
+    rll = quality_check(gray, coords, db, percent=0.9)
+    global_rll_list.append(set(rll))
+
+# Step 6: Plotting function
+
+def plot_foci(labels, rll, gray, binary, coordinates, target_label=None):
+    pixel_count_list = []
+    clustered = np.zeros_like(binary)
+
+    fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+    axs[0].imshow(clustered, cmap='tab20')
+    axs[1].imshow(gray, cmap='gray')
+    axs[2].imshow(binary, cmap='gray')
+
+    for label in np.unique(labels):
+        if label == -1 or label in rll:
+            continue
+        if target_label is not None and label != target_label:
+            continue
+
+        coords = coordinates[labels == label]
+        if len(coords) < MIN_SAMPLES:
+            continue
+
+        clustered[coords[:, 0], coords[:, 1]] = 100
+        pixel_count_list.append([label, len(coords)])
+
+        y_mean, x_mean = coords[:, 0].mean(), coords[:, 1].mean()
+
+        axs[0].text(x_mean, y_mean, str(label), color='white', fontsize=6)
+        axs[1].text(x_mean, y_mean, str(label), color='white', fontsize=6)
+        axs[1].scatter(coords[:, 1], coords[:, 0], marker='x', color=cm.tab20(label), alpha=ALPHA, s=1)
+        axs[2].scatter(coords[:, 1], coords[:, 0], marker='x', color=cm.tab20(label), alpha=ALPHA, s=1)
+
+    plt.tight_layout()
+    return pixel_count_list
+
+
+# Step 7: Apply plotting to each slice
+global_pixel_list = []
+total_clusters = 0
+
+for j in range(len(global_coordinate_list)):
+    pixel_count_list = plot_foci(
+        labels=np.array(slice_labels[j]),
+        rll=global_rll_list[j],
+        gray=img[j],
+        binary=binary_image_list[j][0],
+        coordinates=global_coordinate_list[j][0]
+    )
+    print(f"Slice {j + 1}: {len(pixel_count_list)} clusters plotted")
+    total_clusters += len(pixel_count_list)
+    global_pixel_list.append(pixel_count_list)
+
+print(f"Total clusters across all slices: {total_clusters}")
+
+# Step 8: Plot 3D Cluster Centroids on MIP
+fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+ax.imshow(struct_tiff.max(axis=0), cmap='gray')
+total_points_plotted = 0
+
+for j in range(len(global_coordinate_list)):
+    coords = global_coordinate_list[j][0]
+    labels = np.array(slice_labels[j])
+
+    for label in np.unique(labels):
+        if label == -1 or label in global_rll_list[j]:
+            continue
+        points = coords[labels == label]
+        if len(points) < MIN_SAMPLES:
+            continue
+
+        x_mean = points[:, 1].mean()
+        y_mean = points[:, 0].mean()
+        ax.scatter(x_mean, y_mean, marker='2', color='red', alpha=0.6, s=2)
+        total_points_plotted += 1
+
+print(f"Total points plotted: {total_points_plotted}")
+plt.show()
+filtered_coordinates = []
+
+for j in range(len(global_coordinate_list)):
+    coords = global_coordinate_list[j][0]
+    labels = np.array(slice_labels[j])
+    rll = global_rll_list[j]
+
+    for label in np.unique(labels):
+        if label == -1 or label in rll:
+            continue
+
+        mask = labels == label
+        if np.sum(mask) < MIN_SAMPLES:
+            continue
+
+        x_coords = coords[mask, 1]
+        y_coords = coords[mask, 0]
+        z_coords = [j] * len(x_coords)
+        cluster_ids = [label] * len(x_coords)
+
+        filtered_coordinates.extend(zip(x_coords, y_coords, z_coords, cluster_ids))
+
+# Convert to DataFrame
+filtered_df = pd.DataFrame(filtered_coordinates, columns=["x_pixel", "y_pixel", "z_pixel", "cluster_num"])
+
+# Save to CSV
+filtered_df.to_csv("/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/filtered_coords_2_min_sample_6.csv", index=False)
+
+print(f"✅ Filtered coordinates saved: {len(filtered_df)} points")
+#CLUSTER SIZE 3D
+import pandas as pd
+
+# Load the CSV file
+file_path = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/filtered_coords_2_min_sample_6.csv"
+df = pd.read_csv(file_path)
+
+# Drop duplicates across entire cluster based only on (cluster_num, x_pixel, y_pixel)
+df_unique = df.drop_duplicates(subset=["cluster_num", "x_pixel", "y_pixel"])
+
+# Compute cluster size = number of unique (x,y) per cluster
+cluster_sizes = df_unique.groupby("cluster_num").size().reset_index(name="cluster_size")
+
+# Merge back so every row in the original df has the correct cluster_size
+df = df.merge(cluster_sizes, on="cluster_num", how="left")
+
+# Save the updated DataFrame
+output_path = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/filtered_coords_2_min_sample_6_cluster_size.csv"
+df.to_csv(output_path, index=False)
+
+print(f"Processed data saved to {output_path}")
+from scipy.spatial import distance
+
+# Input CSV
+foci_csv = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/filtered_coords_2_min_sample_6_cluster_size.csv"
+structure_csv = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/full_Table_tissue_new_cut.csv"
+#output to be saved as..
+output_plot_csv = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/plot.csv"
+output_noplot_csv = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/noplot.csv"
+
+# Scale factors (µm per pixel)
+XY_SCALE = 0.099  # µm per pixel
+Z_SCALE = 0.5     # µm per slice
+MIN_DISTANCE = 4 # distance threshold (in pixel units)
+CLUSTER_COL = "cluster_num"
+
+# LOAD DATA
+
+foci_df = pd.read_csv(foci_csv)
+structure_df = pd.read_csv(structure_csv)
+
+# Ensure numeric
+foci_df[['x_pixel', 'y_pixel', 'z_pixel']] = foci_df[['x_pixel', 'y_pixel', 'z_pixel']].apply(pd.to_numeric)
+
+# CONVERT STRUCTURE COORDINATES TO PIXEL SPACE
+
+# Divide µm values by µm-per-pixel scale to get pixel-equivalent positions
+structure_df['x_pixel'] = (structure_df['x_x'] / XY_SCALE).round(0)
+structure_df['y_pixel'] = (structure_df['y_x'] / XY_SCALE).round(0)
+structure_df['z_pixel'] = (structure_df['z_x'] / Z_SCALE).round(0)
+
+# Save structure_df with new pixel-based columns for reference
+structure_df.to_csv("/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/structure_converted_pixels.csv", index=False)
+print("✅ Saved structure_df with converted pixel coordinates.")
+structure_df= structure_df.rename(columns={'Unnamed: 0': 'Index'})  # Ensure there is an Index column
+
+# COMPUTE PAIRWISE DISTANCES
+
+coords_foci = foci_df[['x_pixel', 'y_pixel', 'z_pixel']].to_numpy()
+coords_struct = structure_df[['x_pixel', 'y_pixel', 'z_pixel']].to_numpy()    
+
+# Calculate pairwise Euclidean distances
+distances = distance.cdist(coords_foci, coords_struct)
+
+# Find minimum distance per foci pixel
+foci_df['min_distance'] = distances.min(axis=1)
+foci_df['Index'] = distances.argmin(axis=1)
+
+# CLUSTER-LEVEL MAPPING
+
+cluster_min = foci_df.groupby(CLUSTER_COL)['min_distance'].min()
+mapped_clusters = cluster_min[cluster_min <= MIN_DISTANCE].index
+unmapped_clusters = cluster_min[cluster_min > MIN_DISTANCE].index
+
+foci_df['plot'] = np.where(foci_df[CLUSTER_COL].isin(mapped_clusters), 'PLOT', 'NO_PLOT')
+
+# Split datasets
+foci_plot = foci_df[foci_df['plot'] == 'PLOT']
+foci_noplot = foci_df[foci_df['plot'] == 'NO_PLOT']
+
+# SAVE OUTPUTS
+
+foci_plot.to_csv(output_plot_csv, index=False)
+foci_noplot.to_csv(output_noplot_csv, index=False)
+
+print(f"✅ Mapped clusters saved to: {output_plot_csv}  ({len(mapped_clusters)} clusters)")
+print(f"❌ Unmapped clusters saved to: {output_noplot_csv}  ({len(unmapped_clusters)} clusters)")
+# Load binary PNG image (from MitoSinComp)
+binary_img = imageio.imread('/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/channel_0/channel_0.png')
+
+# Convert RGB to grayscale if needed
+if binary_img.ndim == 3:
+    binary_img = np.mean(binary_img, axis=2)
+
+# Convert to binary mask (0 and 1)
+binary_img = (binary_img > 128).astype(int)
+
+# Flip the binary image vertically (Y-axis flip)
+binary_img_flipped = np.flipud(binary_img)
+
+# 🔴 ADD THIS LINE
+fig, ax = plt.subplots(figsize=(6, 6))
+
+# 🔴 ADD THIS LINE
+ax.imshow(binary_img_flipped, cmap='gray')
+
+# Overlay foci (keep coordinates as-is)
+ax.scatter(
+    foci_noplot['x_pixel'],
+    foci_noplot['y_pixel'],
+    marker='2',
+    color='red',
+    alpha=0.6,
+    s=0.1
+)
+
+ax.axis('off')
+plt.tight_layout()
+
+plt.show()
+# ============================================================
+# IMPORTS
+# ============================================================
+import pandas as pd
+
+# ============================================================
+# MERGE STRUCTURE + mtDNA (PIXEL LEVEL)
+# ============================================================
+merged_df = pd.merge(
+    structure_df,
+    foci_plot,
+    on="Index",
+    how="left"
+)
+
+# keep only pixels that belong to mtDNA clusters
+merged_df = merged_df.dropna(subset=["cluster_num"])
+
+# ============================================================
+# ASSIGN EACH mtDNA CLUSTER TO ONE cc_x (MAJORITY PIXEL RULE)
+# ============================================================
+cluster_ccx_map = (
+    merged_df
+    .groupby(["cluster_num", "cc_x"])
+    .size()
+    .reset_index(name="n_pixels")
+    .sort_values("n_pixels", ascending=False)
+    .drop_duplicates("cluster_num")
+    [["cluster_num", "cc_x"]]
+)
+
+merged_df = pd.merge(
+    merged_df,
+    cluster_ccx_map,
+    on=["cluster_num", "cc_x"],
+    how="inner"
+)
+
+# ============================================================
+# ASSIGN EACH mtDNA CLUSTER TO ONE line_id (MAJORITY PIXEL RULE)
+# ============================================================
+cluster_line_map = (
+    merged_df
+    .groupby(["cluster_num", "line_id"])
+    .size()
+    .reset_index(name="n_pixels")
+    .sort_values("n_pixels", ascending=False)
+    .drop_duplicates("cluster_num")
+    [["cluster_num", "line_id"]]
+)
+
+merged_df = pd.merge(
+    merged_df,
+    cluster_line_map,
+    on=["cluster_num", "line_id"],
+    how="inner"
+)
+
+# ============================================================
+# UNIQUE CLUSTER TABLE (ONE ROW PER CLUSTER)
+# ============================================================
+cluster_df = (
+    merged_df
+    .drop_duplicates(subset="cluster_num")
+    [["cluster_num", "cc_x", "line_id", "cluster_size"]]
+)
+
+# ============================================================
+# cc_x-LEVEL METRICS (CLUSTER-BASED)
+# ============================================================
+cc_num_clusters = cluster_df.groupby("cc_x")["cluster_num"].nunique()
+cc_avg_cluster_size = cluster_df.groupby("cc_x")["cluster_size"].mean()
+
+merged_df["cc_num_of_clusters"] = merged_df["cc_x"].map(cc_num_clusters)
+merged_df["cc_avg_cluster_size"] = merged_df["cc_x"].map(cc_avg_cluster_size)
+
+# ============================================================
+# line_id-LEVEL METRICS (CLUSTER-BASED)
+# ============================================================
+line_num_clusters = (
+    cluster_df
+    .groupby(["cc_x", "line_id"])["cluster_num"]
+    .nunique()
+)
+
+line_avg_cluster_size = (
+    cluster_df
+    .groupby(["cc_x", "line_id"])["cluster_size"]
+    .mean()
+)
+
+merged_df["line_key"] = list(zip(merged_df["cc_x"], merged_df["line_id"]))
+
+merged_df["line_num_of_clusters"] = merged_df["line_key"].map(line_num_clusters)
+merged_df["line_avg_cluster_size"] = merged_df["line_key"].map(line_avg_cluster_size)
+
+merged_df = merged_df.drop(columns="line_key")
+
+# ============================================================
+# QUALITY CONTROL (CRITICAL)
+# ============================================================
+# structure-level uniqueness
+assert merged_df.groupby("cc_x")["nodes"].nunique().max() == 1
+assert merged_df.groupby("cc_x")["edges"].nunique().max() == 1
+assert merged_df.groupby("cc_x")["cc_length_(um)"].nunique().max() == 1
+
+# cluster uniqueness
+assert merged_df.groupby("cluster_num")["cc_x"].nunique().max() == 1
+assert merged_df.groupby("cluster_num")["line_id"].nunique().max() == 1
+
+print("🧪 QC PASSED: cluster-based, no node logic")
+
+# ============================================================
+# SAVE FINAL FILE
+# ============================================================
+output_path = (
+    "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/plot_without_node_analysis.csv"
+)
+
+merged_df.to_csv(output_path, index=False)
+
+print(f"✅ FINAL FILE SAVED:\n{output_path}")
 
