@@ -39,18 +39,18 @@ def quality_check(gray, coordinates, db, percent = 0.9):
         remove_list_label.append(-1)
 
     return remove_list_label
-dir = '/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/channel_1/channel_1.tif' # Replace * with the location of the tiff file
+dir = '*/AnalysisFiles_cell/channel_1/channel_1.tif' # Replace * with the location of the tiff file
 img = tifffile.imread(dir)
 
-struct_tiff = tifffile.imread('/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/channel_0/channel_0.tif') #Replace * with the location of the tiff file
+struct_tiff = tifffile.imread('*/AnalysisFiles_cell/channel_0/channel_0.tif') #Replace * with the location of the tiff file
 func_tiff = tifffile.imread(dir)
 
-df = pd.read_csv('/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/full_Table_tissue_new_cut.csv') #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
+df = pd.read_csv('*/AnalysisFiles_tissue/full_Table_tissue.csv') #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
 df = df.rename(columns = {'Unnamed: 0': 'Index'})
 
 plt.imshow(img[5])
 #Pixels above this threshold to be considered= THRESH_PERCENT
-THRESH_PERCENT = 100 - 2 # n will be based on ImageJ thresholding as detailed in Methods
+THRESH_PERCENT = 100 - n # n will be based on ImageJ thresholding as detailed in Methods
 EPSILON = 1  # DBSCAN radius in pixels
 MIN_SAMPLES = 6 # Minimum samples in a cluster
 ALPHA = 0.6  # Transparency for plotting
@@ -213,14 +213,14 @@ for j in range(len(global_coordinate_list)):
 filtered_df = pd.DataFrame(filtered_coordinates, columns=["x_pixel", "y_pixel", "z_pixel", "cluster_num"])
 
 # Save to CSV
-filtered_df.to_csv("/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/filtered_coords_2_min_sample_6.csv", index=False)
+filtered_df.to_csv("*/filtered_coords_thresh_2_min_sample_6.csv", index=False) #Replace * with file location
 
 print(f"✅ Filtered coordinates saved: {len(filtered_df)} points")
 #CLUSTER SIZE 3D
 import pandas as pd
 
 # Load the CSV file
-file_path = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/filtered_coords_2_min_sample_6.csv"
+file_path = "*/filtered_coords_thresh_2_min_sample_6.csv" #Replace * with file location
 df = pd.read_csv(file_path)
 
 # Drop duplicates across entire cluster based only on (cluster_num, x_pixel, y_pixel)
@@ -233,18 +233,18 @@ cluster_sizes = df_unique.groupby("cluster_num").size().reset_index(name="cluste
 df = df.merge(cluster_sizes, on="cluster_num", how="left")
 
 # Save the updated DataFrame
-output_path = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/filtered_coords_2_min_sample_6_cluster_size.csv"
+output_path = "*/filtered_coords_thresh_2_min_sample_6_cluster_size.csv" #Replace * with file location #this file can be used for downstream analysis of only functional DBSCAN output
 df.to_csv(output_path, index=False)
 
 print(f"Processed data saved to {output_path}")
 from scipy.spatial import distance
 
 # Input CSV
-foci_csv = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/filtered_coords_2_min_sample_6_cluster_size.csv"
-structure_csv = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/full_Table_tissue_new_cut.csv"
+foci_csv = "*/filtered_coords_thresh_2_min_sample_6_cluster_size.csv" #Replace * with file location
+structure_csv = "*/AnalysisFiles_cell/full_Table_cell.csv" #Replace * with file location
 #output to be saved as..
-output_plot_csv = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/plot.csv"
-output_noplot_csv = "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/noplot.csv"
+output_plot_csv = "*/plot.csv" #Replace * with file location
+output_noplot_csv = "*/noplot.csv" #Replace * with file location
 
 # Scale factors (µm per pixel)
 XY_SCALE = 0.099  # µm per pixel
@@ -268,7 +268,7 @@ structure_df['y_pixel'] = (structure_df['y_x'] / XY_SCALE).round(0)
 structure_df['z_pixel'] = (structure_df['z_x'] / Z_SCALE).round(0)
 
 # Save structure_df with new pixel-based columns for reference
-structure_df.to_csv("/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/structure_converted_pixels.csv", index=False)
+structure_df.to_csv("*/AnalysisFiles_cell/structure_converted_pixels.csv", index=False) #Replace * with file location
 print("✅ Saved structure_df with converted pixel coordinates.")
 structure_df= structure_df.rename(columns={'Unnamed: 0': 'Index'})  # Ensure there is an Index column
 
@@ -304,7 +304,7 @@ foci_noplot.to_csv(output_noplot_csv, index=False)
 print(f"✅ Mapped clusters saved to: {output_plot_csv}  ({len(mapped_clusters)} clusters)")
 print(f"❌ Unmapped clusters saved to: {output_noplot_csv}  ({len(unmapped_clusters)} clusters)")
 # Load binary PNG image (from MitoSinComp)
-binary_img = imageio.imread('/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/AnalysisFiles_tissue_new_cut/channel_0/channel_0.png')
+binary_img = imageio.imread('*/AnalysisFiles_cell/channel_0/channel_0.png') #Replace * with file location
 
 # Convert RGB to grayscale if needed
 if binary_img.ndim == 3:
@@ -446,16 +446,16 @@ assert merged_df.groupby("cc_x")["cc_length_(um)"].nunique().max() == 1
 assert merged_df.groupby("cluster_num")["cc_x"].nunique().max() == 1
 assert merged_df.groupby("cluster_num")["line_id"].nunique().max() == 1
 
-print("🧪 QC PASSED: cluster-based, no node logic")
+print(" QC PASSED: cluster-based, no node logic")
 
 # ============================================================
 # SAVE FINAL FILE
 # ============================================================
 output_path = (
-    "/media/mitralab/Sys_BackUp/Bharti/PHB_MTDNA_Z_1-20250803T183100Z-1-001/PHB_MTDNA_Z_1/new_tissue/3d_new/min_sample_6/plot_without_node_analysis.csv"
+    "*/plot_merged.csv"
 )
 
 merged_df.to_csv(output_path, index=False)
 
-print(f"✅ FINAL FILE SAVED:\n{output_path}")
+print(f"FINAL FILE SAVED:\n{output_path}")
 
