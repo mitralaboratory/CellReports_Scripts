@@ -1,4 +1,4 @@
-#import the packages
+#Import the packages
 import tifffile
 import matplotlib.pyplot as plt
 import numpy as np 
@@ -9,6 +9,7 @@ import pandas as pd
 from scipy.spatial import distance
 import imageio
 import imageio.v2 as imageio
+#Defining quality check
 def quality_check(gray, coordinates, db, percent = 0.9):
     # for the items in unique list, find the coordinates
     unique_coords = []
@@ -49,10 +50,11 @@ df = pd.read_csv('*/AnalysisFiles_tissue/full_Table_tissue.csv') #Table from Mit
 df = df.rename(columns = {'Unnamed: 0': 'Index'})
 
 plt.imshow(img[5])
+
 #Pixels above this threshold to be considered= THRESH_PERCENT
 THRESH_PERCENT = 100 - n # n will be based on ImageJ thresholding as detailed in Methods
 EPSILON = 1  # DBSCAN radius in pixels
-MIN_SAMPLES = 6 # Minimum samples in a cluster
+MIN_SAMPLES = n # n= minimum samples in a cluster
 ALPHA = 0.6  # Transparency for plotting
 
 pixel_count_list = []
@@ -216,7 +218,8 @@ filtered_df = pd.DataFrame(filtered_coordinates, columns=["x_pixel", "y_pixel", 
 filtered_df.to_csv("*/filtered_coords_thresh_2_min_sample_6.csv", index=False) #Replace * with file location
 
 print(f"✅ Filtered coordinates saved: {len(filtered_df)} points")
-#CLUSTER SIZE 3D
+
+#Cluster size calculation in 3D
 import pandas as pd
 
 # Load the CSV file
