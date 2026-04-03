@@ -448,8 +448,8 @@ assert merged_df.groupby("cluster_num")["line_id"].nunique().max() == 1
 # SAVE FINAL FILE
 # ============================================================
 output_path = (
-    "*/plot_merged.csv"
-)
+    "*/plot_merged.csv" 
+) # Replace * with file location
 
 merged_df.to_csv(output_path, index=False)
 
