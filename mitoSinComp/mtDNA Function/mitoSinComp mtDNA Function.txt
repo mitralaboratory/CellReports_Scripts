@@ -46,7 +46,7 @@ img = tifffile.imread(dir)
 struct_tiff = tifffile.imread('*/AnalysisFiles_cell/channel_0/channel_0.tif') #Replace * with the location of the tiff file
 func_tiff = tifffile.imread(dir)
 
-df = pd.read_csv('*/AnalysisFiles_tissue/full_Table_tissue.csv') #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
+df = pd.read_csv('*/AnalysisFiles_cell/full_Table_cell.csv') #Table from MitoSinComp output # Replace * with the location (Refer to the Script for MitoSinComp)
 df = df.rename(columns = {'Unnamed: 0': 'Index'})
 
 plt.imshow(img[5])
@@ -217,7 +217,7 @@ filtered_df = pd.DataFrame(filtered_coordinates, columns=["x_pixel", "y_pixel", 
 # Save to CSV
 filtered_df.to_csv("*/filtered_coords_thresh_2_min_sample_6.csv", index=False) #Replace * with file location
 
-print(f"✅ Filtered coordinates saved: {len(filtered_df)} points")
+print(f"Filtered coordinates saved: {len(filtered_df)} points")
 
 #Cluster size calculation in 3D
 import pandas as pd
@@ -272,7 +272,7 @@ structure_df['z_pixel'] = (structure_df['z_x'] / Z_SCALE).round(0)
 
 # Save structure_df with new pixel-based columns for reference
 structure_df.to_csv("*/AnalysisFiles_cell/structure_converted_pixels.csv", index=False) #Replace * with file location
-print("✅ Saved structure_df with converted pixel coordinates.")
+print("Saved structure_df with converted pixel coordinates.")
 structure_df= structure_df.rename(columns={'Unnamed: 0': 'Index'})  # Ensure there is an Index column
 
 # COMPUTE PAIRWISE DISTANCES
@@ -304,8 +304,8 @@ foci_noplot = foci_df[foci_df['plot'] == 'NO_PLOT']
 foci_plot.to_csv(output_plot_csv, index=False)
 foci_noplot.to_csv(output_noplot_csv, index=False)
 
-print(f"✅ Mapped clusters saved to: {output_plot_csv}  ({len(mapped_clusters)} clusters)")
-print(f"❌ Unmapped clusters saved to: {output_noplot_csv}  ({len(unmapped_clusters)} clusters)")
+print(f"Mapped clusters saved to: {output_plot_csv}  ({len(mapped_clusters)} clusters)")
+print(f"Unmapped clusters saved to: {output_noplot_csv}  ({len(unmapped_clusters)} clusters)")
 # Load binary PNG image (from MitoSinComp)
 binary_img = imageio.imread('*/AnalysisFiles_cell/channel_0/channel_0.png') #Replace * with file location
 
@@ -337,10 +337,7 @@ ax.axis('off')
 plt.tight_layout()
 
 plt.show()
-# ============================================================
-# IMPORTS
-# ============================================================
-import pandas as pd
+
 
 # ============================================================
 # MERGE STRUCTURE + mtDNA (PIXEL LEVEL)
