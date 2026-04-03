@@ -316,10 +316,8 @@ binary_img = (binary_img > 128).astype(int)
 # Flip the binary image vertically (Y-axis flip)
 binary_img_flipped = np.flipud(binary_img)
 
-# 🔴 ADD THIS LINE
 fig, ax = plt.subplots(figsize=(6, 6))
 
-# 🔴 ADD THIS LINE
 ax.imshow(binary_img_flipped, cmap='gray')
 
 # Overlay foci (keep coordinates as-is)
@@ -435,7 +433,7 @@ merged_df["line_avg_cluster_size"] = merged_df["line_key"].map(line_avg_cluster_
 merged_df = merged_df.drop(columns="line_key")
 
 # ============================================================
-# QUALITY CONTROL (CRITICAL)
+# QUALITY CONTROL 
 # ============================================================
 # structure-level uniqueness
 assert merged_df.groupby("cc_x")["nodes"].nunique().max() == 1
@@ -445,8 +443,6 @@ assert merged_df.groupby("cc_x")["cc_length_(um)"].nunique().max() == 1
 # cluster uniqueness
 assert merged_df.groupby("cluster_num")["cc_x"].nunique().max() == 1
 assert merged_df.groupby("cluster_num")["line_id"].nunique().max() == 1
-
-print(" QC PASSED: cluster-based, no node logic")
 
 # ============================================================
 # SAVE FINAL FILE
