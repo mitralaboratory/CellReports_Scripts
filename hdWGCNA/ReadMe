@@ -1,0 +1,1 @@
+This folder conatins the complete code for performing hDWGCNA analyses for scRNASeq Data. The starting point for this analyese will be the integrated files from Seurat. The complete code is commented for easy understadning. 
