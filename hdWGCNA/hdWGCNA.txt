@@ -198,7 +198,7 @@ set.seed(12345)
 enableWGCNAThreads(nThreads = 8)
 
 
-#seurat_obj <- readRDS("*/T10exp-H_0.2_SFT14_hdWGCNA_object.rds") #Replace * with actual path
+#seurat_obj <- readRDS("*/NT-H_0.2_SFT14_hdWGCNA_object.rds") #Replace * with actual path
 
 # construct metacells  in each group
   seurat_obj <- MetacellsByGroups(
@@ -248,7 +248,7 @@ dir.create("*/out/TF10/plots_combined")
 combined_plot <- wrap_plots(plot_list, ncol = 2)
 
 # Save the combined plot
-combined_file_path <- "*/out/TF10/plots_combined/combined_plots.png" #Replace * with actual file path
+combined_file_path <- "*/out/NT/plots_combined/combined_plots.png" #Replace * with actual file path
 ggsave(filename = combined_file_path, plot = combined_plot, width = 10, height = 8)
 
 power_table <- GetPowerTable(seurat_obj)
@@ -259,24 +259,24 @@ write.csv(power_table, file = "*/out/TF10/power_table.csv", row.names = FALSE) #
   seurat_obj <- ConstructNetwork(
   seurat_obj, soft_power=9,#Add soft_power based on soft thresholding power plot
   setDatExpr=FALSE,
-  tom_name = 'TF10-H_0.2_SFT9', overwrite = TRUE # name of the topoligical overlap matrix written to disk #Replace TF10-H_0.2_SFT9 with your group name 
+  tom_name = 'NT-H_0.2_SFT9', overwrite = TRUE # name of the topoligical overlap matrix written to disk #Replace NT-H_0.2_SFT9 with your group name 
 )
 
 # Plot dendrogram
-PlotDendrogram(seurat_obj, main = 'TF10-H_0.2_SFT9_hdWGCNA_Dendrogram') Replace TF10-H_0.2_SFT9_hdWGCNA_Dendrogram with your real name
+PlotDendrogram(seurat_obj, main = 'NT-H_0.2_SFT9_hdWGCNA_Dendrogram') Replace NT-H_0.2_SFT9_hdWGCNA_Dendrogram with your real name
 
 # Create a directory to save the dendrogram plot
-dir.create("*/out/TF10/, recursive = TRUE") #Replace * with actual path #Replace TF10 with your group name 
+dir.create("*/out/TF10/, recursive = TRUE") #Replace * with actual path #Replace NT with your group name 
 
 # Save the dendrogram plot
-dendrogram_file_path <- "*/out/TF10/TF10-H_0.2_SFT9_dendrogram.pdf" #Replace * with actual path
+dendrogram_file_path <- "*/out/NT/NT-H_0.2_SFT9_dendrogram.pdf" #Replace * with actual path
 dev.copy2pdf(file = dendrogram_file_path, height = 6, width = 8)
 dev.off()
 
 TOM <- GetTOM(seurat_obj)
 
-file.copy(from = "*/TF10-H_0.2_SFT9_TOM.rda", 
-          to = "*/out/TF10/TF10-H_0.2_SFT9_TOM.rda") #Replace * with actual path
+file.copy(from = "*/NT-H_0.2_SFT9_TOM.rda", 
+          to = "*/out/NT/NT-H_0.2_SFT9_TOM.rda") #Replace * with actual path
 
 # need to run ScaleData first or else harmony throws an error:
 seurat_obj <- ScaleData(seurat_obj, features=VariableFeatures(seurat_obj))
@@ -326,11 +326,11 @@ p <- PlotKMEs(
 p
 
 # Save the KME plot                                                        
-kme_file_path <- "/home/genomics/Drp1/out/TF10/KME_plot.jpg"
+kme_file_path <- "/home/genomics/Drp1/out/NT/KME_plot.jpg"
 ggsave(filename = kme_file_path, plot = p, width = 10, height = 8)
 
 # Save the KME plot                                                        
-kme_file_path <- "/home/genomics/Drp1/out/TF10/KME_plot.png"
+kme_file_path <- "/home/genomics/Drp1/out/NT/KME_plot.png"
 ggsave(filename = kme_file_path, plot = p, width = 10, height = 8)
 
 
@@ -350,14 +350,14 @@ head(modules[,1:6])
 hub_df <- GetHubGenes(seurat_obj, n_hubs = 10)
 
 head(hub_df)
-hub_file_path <- "*/out/TF10/hub_genes.csv" # Replace *  with the actual path
+hub_file_path <- "*/out/NT/hub_genes.csv" # Replace *  with the actual path
 write.csv(hub_df, file = hub_file_path, row.names = FALSE)
 
 #Output
 
 #This wraps up the critical analysis steps for hdWGCNA, so remember to save your output.
 
-saveRDS(seurat_obj, file='*/out/TF10-H_0.2_SFT9_hdWGCNA_object.rds')  # Replace *  with the actual path Replace "TF10-H_0.2_SFT9_hdWGCNA_object" with Sample Name
+saveRDS(seurat_obj, file='*/out/NT-H_0.2_SFT9_hdWGCNA_object.rds')  # Replace *  with the actual path Replace "NT-H_0.2_SFT9_hdWGCNA_object" with Sample Name
 
 
 #HUB GENE NETWORK VISUALIZATION
@@ -449,8 +449,8 @@ hub_gene <- HubGeneNetworkPlot(
 # Extract the graph
 g <- HubGeneNetworkPlot(seurat_obj, return_graph = TRUE)
 
-# Identify the edges belonging to module T1exp_0.2_FMMCGnew_T10SFT10-M1
-module_edges <- which(V(g)$module == "T1exp_0.2_FMMCGnew_T10SFT10-M1")
+# Identify the edges belonging to module NT-H_0.2_SFT9-M1
+module_edges <- which(V(g)$module == "NT-H_0.2_SFT9-M1")
 
 # Remove self-connections within the specified module
 self_edges <- which(E(g)$from == E(g)$to & E(g)$from %in% module_edges)
