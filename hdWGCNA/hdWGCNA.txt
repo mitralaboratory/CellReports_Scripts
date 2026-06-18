@@ -64,8 +64,10 @@ for (i in 1:length(plot_list)) {
 }
 
 
-# keep cells with greater than 500 UMIs and fewer than 5000 UMIs
-seurat_obj <- subset(seurat_obj, nCount_RNA >= 4000) #Replace 4000 with value as per QC Plot 
+# Dataset-specific UMI filtering for hdWGCNA.
+# Replace 4000 with the nCount_RNA threshold determined from the QC plot
+# of the corresponding dataset (see Supplementary Fig. S11D).
+seurat_obj <- subset(seurat_obj, nCount_RNA >= 4000)
 
 # change the assay to the gene counts matrix
 DefaultAssay(seurat_obj) <- 'RNA'
